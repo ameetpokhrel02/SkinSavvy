@@ -20,7 +20,7 @@ const auth = async (req, res, next) => {
   }
 };
 
-// Middleware to require certain roles
+// Middleware to require certain roless
 const requireRole = (roles) => {
   return (req, res, next) => {
     if (!roles.includes(req.user.role)) {
