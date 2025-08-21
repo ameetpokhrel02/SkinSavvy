@@ -1,0 +1,27 @@
+# Dockerfile.ai
+# Use an official Python runtime with TensorFlow as the base image
+FROM tensorflow/tensorflow:2.15.0
+
+# Set the working directory inside the container
+WORKDIR /app
+
+# Install system dependencies (if needed for your scripts)
+# RUN apt-get update && apt-get install -y --no-install-recommends ...
+
+# Copy the Python requirements file
+COPY requirements.txt .
+
+# Install Python dependencies
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy your model training/service code
+COPY model/ ./model/
+
+# Copy your saved model (if you want to bundle it, otherwise use a volume)
+# COPY saved_models/ ./saved_models/
+
+# Command to run your AI service.
+# This could be a Flask server or a script that loads the model.
+# Example: CMD ["python", "model/ai_service.py"]
+# For now, we'll just keep it running so we can shell in.
+CMD ["sleep", "infinity"]

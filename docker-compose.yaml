@@ -1,0 +1,76 @@
+# docker-compose.yml
+version: '3.8'
+
+services:
+  # Reverse Proxy
+  nginx:
+    image: nginx:alpine
+    container_name: skincare-proxy
+    ports:
+      - "80:80"  # Maps host port 80 to container port 80
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro  # Mount our config
+    depends_on:
+      - backend
+    networks:
+      - skincare-network
+
+  # Backend API (Node.js/Express)
+  backend:
+    build: 
+      context: .  # Build from the current directory (where Dockerfile is)
+      dockerfile: Dockerfile
+    container_name: skincare-backend
+    environment:
+      - NODE_ENV=production
+      - DB_HOST=database
+      - DB_PORT=5432
+      - AI_SERVICE_URL=http://ai-service:8501  # Internal Docker network communication
+    volumes:
+      # Mount your code for development (remove for production)
+      - .:/app
+      - /app/node_modules
+    depends_on:
+      - database
+      - ai-service
+    networks:
+      - skincare-network
+
+  # AI Service (Python/TensorFlow)
+  ai-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.ai
+    container_name: skincare-ai
+    environment:
+      - MODEL_PATH=/models
+    volumes:
+      # Mount a volume for your trained models so they persist
+      - skincare-models:/models
+      # For development, mount your code
+      - ./model:/app/model
+    networks:
+      - skincare-network
+
+  # Database
+  database:
+    image: postgres:15-alpine
+    container_name: skincare-db
+    environment:
+      - POSTGRES_DB=skinsavvy
+      - POSTGRES_USER=admin
+      - POSTGRES_PASSWORD=password123
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - skincare-network
+
+# Define volumes to persist data
+volumes:
+  postgres-data:  # Database data
+  skincare-models:  # Trained TensorFlow models
+
+# Define a custom network for all services to communicate
+networks:
+  skincare-network:
+    driver: bridge

@@ -1,0 +1,8 @@
+CREATE TABLE analysis_history (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER REFERENCES users(id),
+    image_url VARCHAR(500),
+    condition_type VARCHAR(100),
+    confidence_score DECIMAL(5,4),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);

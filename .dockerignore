@@ -1,0 +1,14 @@
+# .dockerignore
+.venv
+data
+saved_models
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.DS_Store
+.env
+.git
+.gitignore
+README.md
+database_schema

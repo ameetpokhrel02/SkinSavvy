@@ -1,0 +1,8 @@
+CREATE TABLE routines (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    name VARCHAR(100), -- e.g., "Morning Routine", "Evening Routine"
+    products TEXT[], -- Array of product IDs or names
+    instructions TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);

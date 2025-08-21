@@ -1,0 +1,12 @@
+CREATE TABLE users (
+    id SERIAL PRIMARY KEY,
+    email VARCHAR(255) UNIQUE NOT NULL,
+    password_hash VARCHAR(255) NOT NULL,
+    role VARCHAR(20) DEFAULT 'free' CHECK (role IN ('free', 'premium', 'admin')),
+    analysis_count INTEGER DEFAULT 0, -- To track monthly usage for free users
+    subscription_id VARCHAR(255), -- For storing Stripe/PayPal subscription ID
+    subscription_status VARCHAR(50) DEFAULT 'inactive', -- e.g., active, past_due, canceled
+    current_period_end TIMESTAMP, -- When the subscription expires
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);

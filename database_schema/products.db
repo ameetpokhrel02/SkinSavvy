@@ -1,0 +1,10 @@
+CREATE TABLE products (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    ingredients TEXT,
+    target_conditions VARCHAR(100)[],
+    image_url VARCHAR(500),
+    buy_link VARCHAR(500),
+    brand VARCHAR(100)
+);
