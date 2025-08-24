@@ -12,47 +12,56 @@ from tensorflow.keras.callbacks import EarlyStopping, ReduceLROnPlateau, ModelCh
 import matplotlib.pyplot as plt
 import numpy as np
 import os
+import shutil
+from pathlib import Path
 
 # --- CONFIG ---
 IMG_SIZE = (224, 224)
-BATCH_SIZE = 32
+BATCH_SIZE = 16  # Reduced for memory constraints
 NUM_CLASSES = 1  # Binary classification: acne vs no_acne
-EPOCHS = 20
+EPOCHS = 15
 LEARNING_RATE = 0.001
 
 # --- DATASET PATHS ---
-# Update these paths to your actual dataset locations
-BASE_DIR = '/home/amit/SkinCareAI/model/data'
-TRAIN_DIR = os.path.join(BASE_DIR, 'train')
-VAL_DIR = os.path.join(BASE_DIR, 'val')
-TEST_DIR = os.path.join(BASE_DIR, 'test')  # Add test set for final evaluation
+# Use the organized dataset paths
+BASE_DIR = Path(__file__).parent
+TRAIN_DIR = BASE_DIR / 'data_organized' / 'train'
+VAL_DIR = BASE_DIR / 'data_organized' / 'val'
 
 # Create model directory if it doesn't exist
-MODEL_DIR = '/home/amit/SkinCareAI/model/saved_models'
-os.makedirs(MODEL_DIR, exist_ok=True)
+MODEL_DIR = BASE_DIR / 'saved_models'
+MODEL_DIR.mkdir(parents=True, exist_ok=True)
+
+print(f"Training data directory: {TRAIN_DIR}")
+print(f"Validation data directory: {VAL_DIR}")
+print(f"Model save directory: {MODEL_DIR}")
+
+# Check if directories exist
+if not TRAIN_DIR.exists():
+    raise FileNotFoundError(f"Training directory not found: {TRAIN_DIR}")
+if not VAL_DIR.exists():
+    raise FileNotFoundError(f"Validation directory not found: {VAL_DIR}")
 
 # --- DATA AUGMENTATION ---
 print("Setting up data generators...")
 
 train_datagen = ImageDataGenerator(
     rescale=1./255,
-    rotation_range=25,
+    rotation_range=20,
     width_shift_range=0.2,
     height_shift_range=0.2,
     shear_range=0.2,
-    zoom_range=0.3,
+    zoom_range=0.2,
     horizontal_flip=True,
-    vertical_flip=True,
     brightness_range=[0.8, 1.2],
     fill_mode='nearest'
 )
 
 val_datagen = ImageDataGenerator(rescale=1./255)
-test_datagen = ImageDataGenerator(rescale=1./255)
 
 # Create data generators
 train_gen = train_datagen.flow_from_directory(
-    TRAIN_DIR,
+    str(TRAIN_DIR),
     target_size=IMG_SIZE,
     batch_size=BATCH_SIZE,
     class_mode='binary',
@@ -61,23 +70,17 @@ train_gen = train_datagen.flow_from_directory(
 )
 
 val_gen = val_datagen.flow_from_directory(
-    VAL_DIR,
+    str(VAL_DIR),
     target_size=IMG_SIZE,
     batch_size=BATCH_SIZE,
     class_mode='binary',
     shuffle=False
 )
 
-test_gen = test_datagen.flow_from_directory(
-    TEST_DIR,
-    target_size=IMG_SIZE,
-    batch_size=BATCH_SIZE,
-    class_mode='binary',
-    shuffle=False
-)
-
-# Print class indices
+# Print class indices and sample counts
 print(f"Class indices: {train_gen.class_indices}")
+print(f"Training samples: {train_gen.samples}")
+print(f"Validation samples: {val_gen.samples}")
 
 # --- MODEL ARCHITECTURE ---
 print("Building model...")
@@ -131,7 +134,7 @@ callbacks = [
         verbose=1
     ),
     ModelCheckpoint(
-        filepath=os.path.join(MODEL_DIR, 'best_model.h5'),
+        filepath=str(MODEL_DIR / 'best_model.h5'),
         monitor='val_accuracy',
         save_best_only=True,
         mode='max',
@@ -141,6 +144,9 @@ callbacks = [
 
 # --- TRAINING ---
 print("Starting training...")
+print(f"Steps per epoch: {train_gen.samples // BATCH_SIZE}")
+print(f"Validation steps: {val_gen.samples // BATCH_SIZE}")
+
 history = model.fit(
     train_gen,
     steps_per_epoch=train_gen.samples // BATCH_SIZE,
@@ -152,17 +158,17 @@ history = model.fit(
 )
 
 # --- EVALUATION ---
-print("Evaluating model...")
-test_loss, test_accuracy, test_precision, test_recall = model.evaluate(test_gen)
-print(f"\nTest Results:")
-print(f"Accuracy: {test_accuracy:.4f}")
-print(f"Precision: {test_precision:.4f}")
-print(f"Recall: {test_recall:.4f}")
-print(f"F1-Score: {2 * (test_precision * test_recall) / (test_precision + test_recall):.4f}")
+print("Evaluating model on validation set...")
+val_loss, val_accuracy, val_precision, val_recall = model.evaluate(val_gen)
+print(f"\nValidation Results:")
+print(f"Accuracy: {val_accuracy:.4f}")
+print(f"Precision: {val_precision:.4f}")
+print(f"Recall: {val_recall:.4f}")
+print(f"F1-Score: {2 * (val_precision * val_recall) / (val_precision + val_recall):.4f}")
 
 # --- SAVE FINAL MODEL ---
-final_model_path = os.path.join(MODEL_DIR, 'skin_condition_model.h5')
-model.save(final_model_path)
+final_model_path = MODEL_DIR / 'skin_condition_model.h5'
+model.save(str(final_model_path))
 print(f"\nModel saved to: {final_model_path}")
 
 # --- PLOT TRAINING HISTORY ---
@@ -186,37 +192,12 @@ def plot_training_history(history):
     ax2.legend()
     
     plt.tight_layout()
-    plt.savefig(os.path.join(MODEL_DIR, 'training_history.png'))
+    plt.savefig(str(MODEL_DIR / 'training_history.png'))
     plt.show()
 
 plot_training_history(history)
 
-# --- FINE-TUNING (Optional) ---
-# Uncomment for fine-tuning after initial training
-"""
-print("Starting fine-tuning...")
-base_model.trainable = True
-
-# Fine-tune from this layer onwards
-fine_tune_at = 100
-for layer in base_model.layers[:fine_tune_at]:
-    layer.trainable = False
-
-model.compile(
-    optimizer=tf.keras.optimizers.Adam(learning_rate=LEARNING_RATE/10),
-    loss='binary_crossentropy',
-    metrics=['accuracy']
-)
-
-history_fine = model.fit(
-    train_gen,
-    steps_per_epoch=train_gen.samples // BATCH_SIZE,
-    validation_data=val_gen,
-    validation_steps=val_gen.samples // BATCH_SIZE,
-    epochs=10,
-    initial_epoch=history.epoch[-1],
-    callbacks=callbacks
-)
-"""
 
 print("Training completed successfully!")
+print(f"Model saved to: {final_model_path}")
+print(f"Training history plot saved to: {MODEL_DIR / 'training_history.png'}")
